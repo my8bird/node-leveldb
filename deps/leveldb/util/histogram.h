@@ -16,6 +16,7 @@ class Histogram {
 
   void Clear();
   void Add(double value);
+  void Merge(const Histogram& other);
 
   std::string ToString() const;
 
@@ -36,6 +37,6 @@ class Histogram {
   double StandardDeviation() const;
 };
 
-}
+}  // namespace leveldb
 
 #endif  // STORAGE_LEVELDB_UTIL_HISTOGRAM_H_

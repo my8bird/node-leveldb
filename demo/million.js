@@ -1,4 +1,4 @@
-var DB = require('../build/default/leveldb.node').DB;
+var DB = require('../build/leveldb.node').DB;
 
 console.log("Creating test database");
 var path = "/tmp/large.db";

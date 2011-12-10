@@ -7,6 +7,8 @@
 #include "leveldb/db.h"
 #include "WriteBatch.h"
 
+#include "helpers.h"
+
 using namespace v8;
 using namespace node;
 
@@ -18,6 +20,10 @@ public:
   virtual ~DB();
 
   static void Init(Handle<Object> target);
+
+  static bool HasInstance(Handle<Value> val);
+
+  void Close();
 
 private:
   static Handle<Value> New(const Arguments& args);
@@ -31,6 +37,7 @@ private:
 
   static Handle<Value> Get(const Arguments& args);
 
+  static void unrefIterator(Persistent<Value> object, void* parameter);
   static Handle<Value> NewIterator(const Arguments& args);
 
   static Handle<Value> GetSnapshot(const Arguments& args);
@@ -62,14 +69,14 @@ private:
   };
 
   struct ReadParams : Params {
-    ReadParams(DB *self, leveldb::Slice key, leveldb::ReadOptions &options, Handle<Function> callback, std::vector<std::string> *strings = NULL)
-      : Params(self, callback), key(key), options(options), strings(strings) {}
-    
-    virtual ~ReadParams();
+    ReadParams(DB *self, leveldb::ReadOptions &options, bool asBuffer, Handle<Function> callback)
+    : Params(self, callback), key(NULL), keyLen(0), options(options), asBuffer(asBuffer) {}
 
-    leveldb::Slice key;
+    char *key;
+    int keyLen;
+    Persistent<Object> keyBuf;
     leveldb::ReadOptions options;
-    std::vector<std::string> *strings;
+    bool asBuffer;
     std::string result;
   };
 
@@ -83,23 +90,24 @@ private:
   };
 
   static void EIO_BeforeOpen(OpenParams *params);
-  static int EIO_Open(eio_req *req);
+  static eio_return_type EIO_Open(eio_req *req);
   static int EIO_AfterOpen(eio_req *req);
   
   static void EIO_BeforeClose(Params *params);
-  static int EIO_Close(eio_req *req);
+  static eio_return_type EIO_Close(eio_req *req);
   static int EIO_AfterClose(eio_req *req);
   
   static void EIO_BeforeRead(ReadParams *params);
-  static int EIO_Read(eio_req *req);
+  static eio_return_type EIO_Read(eio_req *req);
   static int EIO_AfterRead(eio_req *req);
   
   static void EIO_BeforeWrite(WriteParams *params);
-  static int EIO_Write(eio_req *req);
+  static eio_return_type EIO_Write(eio_req *req);
   static int EIO_AfterWrite(eio_req *req);
   
   leveldb::DB* db;
   static Persistent<FunctionTemplate> persistent_function_template;
+  std::vector< Persistent<Object> > iteratorList;
 };
 
 } // node_leveldb

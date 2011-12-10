@@ -1,4 +1,4 @@
-build/build_config.h
+build_config.mk
 *.o
 *.a
 *_test

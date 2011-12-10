@@ -16,12 +16,13 @@ class VersionSet;
 
 struct FileMetaData {
   int refs;
+  int allowed_seeks;          // Seeks allowed until compaction
   uint64_t number;
   uint64_t file_size;         // File size in bytes
   InternalKey smallest;       // Smallest internal key served by table
   InternalKey largest;        // Largest internal key served by table
 
-  FileMetaData() : refs(0), file_size(0) { }
+  FileMetaData() : refs(0), allowed_seeks(1 << 30), file_size(0) { }
 };
 
 class VersionEdit {
@@ -83,7 +84,7 @@ class VersionEdit {
  private:
   friend class VersionSet;
 
-  USED_BY_NESTED_FRIEND2(typedef std::set< std::pair<int, uint64_t> > DeletedFileSet)
+  typedef std::set< std::pair<int, uint64_t> > DeletedFileSet;
 
   std::string comparator_;
   uint64_t log_number_;
@@ -96,11 +97,11 @@ class VersionEdit {
   bool has_next_file_number_;
   bool has_last_sequence_;
 
-  USED_BY_NESTED_FRIEND2(std::vector< std::pair<int, InternalKey> > compact_pointers_)
-  USED_BY_NESTED_FRIEND(DeletedFileSet deleted_files_)
-  USED_BY_NESTED_FRIEND2(std::vector< std::pair<int, FileMetaData> > new_files_)
+  std::vector< std::pair<int, InternalKey> > compact_pointers_;
+  DeletedFileSet deleted_files_;
+  std::vector< std::pair<int, FileMetaData> > new_files_;
 };
 
-}
+}  // namespace leveldb
 
 #endif  // STORAGE_LEVELDB_DB_VERSION_EDIT_H_

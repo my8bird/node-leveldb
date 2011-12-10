@@ -3,6 +3,7 @@
 
 #include <v8.h>
 #include <node.h>
+#include <node_version.h>
 #include <node_buffer.h>
 
 #include "leveldb/db.h"
@@ -12,6 +13,14 @@
 
 using namespace node;
 using namespace v8;
+
+#if NODE_VERSION_AT_LEAST(0, 5, 4)
+  #define eio_return_type void
+  #define eio_return_stmt return
+#else
+  #define eio_return_type int
+  #define eio_return_stmt return 0
+#endif
 
 namespace node_leveldb {
 

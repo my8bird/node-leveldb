@@ -5,6 +5,9 @@
 #include <node_buffer.h>
 #include "helpers.h"
 
+#include <stdlib.h>
+#include <algorithm>
+
 using namespace node_leveldb;
 
 Persistent<FunctionTemplate> DB::persistent_function_template;
@@ -15,10 +18,8 @@ DB::DB()
 }
 
 DB::~DB() {
-  if (db != NULL) {
-    delete db;
-    db = NULL;
-  }
+  // Close database and delete db
+  Close();
 }
 
 void DB::Init(Handle<Object> target) {
@@ -49,6 +50,16 @@ void DB::Init(Handle<Object> target) {
 
   // Binding our constructor function to the target variable
   target->Set(String::NewSymbol("DB"), persistent_function_template->GetFunction());
+}
+
+bool DB::HasInstance(Handle<Value> val) {
+  if (!val->IsObject()) return false;
+  Local<Object> obj = val->ToObject();
+
+  if (persistent_function_template->HasInstance(obj))
+    return true;
+
+  return false;
 }
 
 Handle<Value> DB::New(const Arguments& args) {
@@ -104,20 +115,17 @@ void DB::EIO_BeforeOpen(OpenParams *params) {
   eio_custom(EIO_Open, EIO_PRI_DEFAULT, EIO_AfterOpen, params);
 }
 
-int DB::EIO_Open(eio_req *req) {
+eio_return_type DB::EIO_Open(eio_req *req) {
   OpenParams *params = static_cast<OpenParams*>(req->data);
   DB *self = params->self;
 
   // Close old DB, if open() is called more than once
-  if (self->db != NULL) {
-    delete self->db;
-    self->db = NULL;
-  }
+  self->Close();
 
   // Do the actual work
   params->status = leveldb::DB::Open(params->options, params->name, &self->db);
 
-  return 0;
+  eio_return_stmt;
 }
 
 int DB::EIO_AfterOpen(eio_req *req) {
@@ -135,6 +143,25 @@ int DB::EIO_AfterOpen(eio_req *req) {
 // Close
 //
 
+void DB::Close() {
+  if (db != NULL) {
+    // Close iterators because they must run their destructors before
+    // we can delete the db object.
+    std::vector< Persistent<Object> >::iterator it;
+    for (it = iteratorList.begin(); it != iteratorList.end(); it++) {
+      Iterator *itObj = ObjectWrap::Unwrap<Iterator>(*it);
+      if (itObj) {
+        itObj->Close();
+      }
+      it->Dispose();
+      it->Clear();
+    }
+    iteratorList.clear();
+    delete db;
+    db = NULL;
+  }
+};
+
 Handle<Value> DB::Close(const Arguments& args) {
   HandleScope scope;
 
@@ -147,6 +174,8 @@ Handle<Value> DB::Close(const Arguments& args) {
     callback = Local<Function>::Cast(args[0]);
   }
 
+  self->Close();
+
   Params *params = new Params(self, callback);
   EIO_BeforeClose(params);
   
@@ -157,16 +186,11 @@ void DB::EIO_BeforeClose(Params *params) {
   eio_custom(EIO_Close, EIO_PRI_DEFAULT, EIO_AfterClose, params);
 }
 
-int DB::EIO_Close(eio_req *req) {
+eio_return_type DB::EIO_Close(eio_req *req) {
   Params *params = static_cast<Params*>(req->data);
   DB *self = params->self;
 
-  if (self->db != NULL) {
-    delete self->db;
-    self->db = NULL;
-  }
-  
-  return 0;
+  eio_return_stmt;
 }
 
 int DB::EIO_AfterClose(eio_req *req) {
@@ -308,9 +332,14 @@ Handle<Value> DB::Write(const Arguments& args) {
     callback = Local<Function>::Cast(args[pos]);
     pos++;
   }
-  
+
   // Pass parameters to async function
   WriteParams *params = new WriteParams(self, writeBatch, options, callback);
+
+  if (!params->disposeWriteBatch) {
+    writeBatch->Ref();
+  }
+
   EIO_BeforeWrite(params);
 
   return args.This();
@@ -320,7 +349,7 @@ void DB::EIO_BeforeWrite(WriteParams *params) {
   eio_custom(EIO_Write, EIO_PRI_DEFAULT, EIO_AfterWrite, params);
 }
 
-int DB::EIO_Write(eio_req *req) {
+eio_return_type DB::EIO_Write(eio_req *req) {
   WriteParams *params = static_cast<WriteParams*>(req->data);
   DB *self = params->self;
 
@@ -329,7 +358,7 @@ int DB::EIO_Write(eio_req *req) {
     params->status = self->db->Write(params->options, &params->writeBatch->wb);
   }
 
-  return 0;
+  eio_return_stmt;
 }
 
 int DB::EIO_AfterWrite(eio_req *req) {
@@ -340,6 +369,8 @@ int DB::EIO_AfterWrite(eio_req *req) {
 
   if (params->disposeWriteBatch) {
     delete params->writeBatch;
+  } else {
+    params->writeBatch->Unref();
   }
 
   delete params;
@@ -364,18 +395,19 @@ Handle<Value> DB::Get(const Arguments& args) {
     return ThrowException(Exception::Error(String::New("DB has not been opened")));
   }
   
-  std::vector<std::string> *strings = NULL;
-  if (args[0]->IsString()) {
-    strings = new std::vector<std::string>(1);
-  }
-  leveldb::Slice key = JsToSlice(args[0], strings);
-  
   int pos = 1;
 
   // Optional read options
   leveldb::ReadOptions options = leveldb::ReadOptions();
   if (pos < args.Length() && args[pos]->IsObject() && !args[pos]->IsFunction()) {
     options = JsToReadOptions(args[pos]);
+    pos++;
+  }
+
+  // Optional asBuffer setting
+  bool asBuffer = false;
+  if (pos < args.Length() && args[pos]->IsBoolean()) {
+    asBuffer = args[pos]->ToBoolean()->BooleanValue();
     pos++;
   }
 
@@ -387,7 +419,22 @@ Handle<Value> DB::Get(const Arguments& args) {
   }
   
   // Pass parameters to async function
-  ReadParams *params = new ReadParams(self, key, options, callback, strings);
+  ReadParams *params = new ReadParams(self, options, asBuffer, callback);
+
+  // Set key parameter
+  if (args[0]->IsString()) {
+    String::Utf8Value str(args[0]);
+    params->keyLen = str.length();
+    char *tmp = (char*)malloc(params->keyLen);
+    memcpy(tmp, *str, params->keyLen);
+    params->key = tmp;
+    params->keyBuf = Persistent<Object>();
+  } else {
+    Handle<Object> buf = args[0]->ToObject();
+    params->key = Buffer::Data(buf);
+    params->keyLen = Buffer::Length(buf);
+    params->keyBuf = Persistent<Object>::New(buf);
+  }
   EIO_BeforeRead(params);
 
   return args.This();
@@ -397,34 +444,61 @@ void DB::EIO_BeforeRead(ReadParams *params) {
   eio_custom(EIO_Read, EIO_PRI_DEFAULT, EIO_AfterRead, params);
 }
 
-int DB::EIO_Read(eio_req *req) {
+eio_return_type DB::EIO_Read(eio_req *req) {
   ReadParams *params = static_cast<ReadParams*>(req->data);
   DB *self = params->self;
 
+  leveldb::Slice key(params->key, params->keyLen);
+
   // Do the actual work
   if (self->db != NULL) {
-    params->status = self->db->Get(params->options, params->key, &params->result);
+    params->status = self->db->Get(params->options, key, &params->result);
   }
 
-  return 0;
+  eio_return_stmt;
 }
 
 int DB::EIO_AfterRead(eio_req *req) {
   HandleScope scope;
   
   ReadParams *params = static_cast<ReadParams*>(req->data);
-  params->Callback(String::New(params->result.data(), params->result.length()));
+  if (params->asBuffer) {
+    params->Callback(Bufferize(params->result));
+  } else {
+    params->Callback(String::New(params->result.data(), params->result.length()));
+  }
+
+  if (!params->keyBuf.IsEmpty()) {
+    params->keyBuf.Dispose();
+  } else {
+    free(params->key);
+  }
 
   delete params;
   return 0;
 }
 
+bool CheckAlive(Persistent<Object> o) {
+  return !o.IsNearDeath();
+};
+
+void DB::unrefIterator(Persistent<Value> object, void* parameter) {
+  std::vector< Persistent<Object> > *iteratorList =
+    (std::vector< Persistent<Object> > *) parameter;
+
+  Iterator *itTarget = ObjectWrap::Unwrap<Iterator>(object->ToObject());
+
+  std::vector< Persistent<Object> >::iterator i =
+    partition(iteratorList->begin(), iteratorList->end(), CheckAlive);
+
+  iteratorList->erase(i, iteratorList->end());
+}
 
 Handle<Value> DB::NewIterator(const Arguments& args) {
   HandleScope scope;
 
   if (!(args.Length() == 1 && args[0]->IsObject())) {
-      return ThrowException(Exception::TypeError(String::New("Invalid arguments: Expected (Object)")));
+    return ThrowException(Exception::TypeError(String::New("Invalid arguments: Expected (Object)")));
   } // if
   
   DB* self = ObjectWrap::Unwrap<DB>(args.This());
@@ -435,10 +509,15 @@ Handle<Value> DB::NewIterator(const Arguments& args) {
   // converts an actual instance to it's binding representation
   // https://github.com/taggon/node-gd/blob/master/gd_bindings.cc#L79
   // Guess, I'll understand it soon...
-  Local<Value> _arg_ = External::New(it);
-  Persistent<Object> _it_(Iterator::persistent_function_template->GetFunction()->NewInstance(1, &_arg_));
-  
-  return scope.Close(_it_);
+  Local<Value> argv[] = {External::New(it), args.This()};
+  Handle<Object> itHandle = Iterator::persistent_function_template->GetFunction()->NewInstance(2, argv);
+
+  // Keep a weak reference
+  Persistent<Object> weakHandle = Persistent<Object>::New(itHandle);
+  weakHandle.MakeWeak(&self->iteratorList, &DB::unrefIterator);
+  self->iteratorList.push_back(weakHandle);
+
+  return scope.Close(itHandle);
 }
 
 Handle<Value> DB::GetSnapshot(const Arguments& args) {
@@ -526,10 +605,13 @@ void DB::Params::Callback(Handle<Value> result) {
       if (result.IsEmpty()) {
         callback->Call(self->handle_, 0, NULL);
       } else {
-        Handle<Value> undef = Undefined();
-        Handle<Value> argv[] = { undef, result };
+        Handle<Value> argv[] = { Null(), result };
         callback->Call(self->handle_, 2, argv);
       }
+    } else if (status.IsNotFound()) {
+      // not found, return (null, undef)
+      Handle<Value> argv[] = { Null() };
+      callback->Call(self->handle_, 1, argv);
     } else {
       // error, callback with first argument as error object
       Handle<String> message = String::New(status.ToString().c_str());
@@ -541,11 +623,3 @@ void DB::Params::Callback(Handle<Value> result) {
     }
   }
 }
-
-DB::ReadParams::~ReadParams() {
-  if (strings != NULL) {
-    delete strings;
-  }
-}
-
-

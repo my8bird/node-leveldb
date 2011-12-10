@@ -3,7 +3,6 @@
 // found in the LICENSE file. See the AUTHORS file for names of contributors.
 
 #include "leveldb/iterator.h"
-#include "util/logging.h"
 
 namespace leveldb {
 
@@ -55,7 +54,7 @@ class EmptyIterator : public Iterator {
  private:
   Status status_;
 };
-}
+}  // namespace
 
 Iterator* NewEmptyIterator() {
   return new EmptyIterator(Status::OK());
@@ -65,4 +64,4 @@ Iterator* NewErrorIterator(const Status& status) {
   return new EmptyIterator(status);
 }
 
-}
+}  // namespace leveldb

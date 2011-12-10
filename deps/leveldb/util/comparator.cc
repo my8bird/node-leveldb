@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file. See the AUTHORS file for names of contributors.
 
+#include <algorithm>
 #include <stdint.h>
 #include "leveldb/comparator.h"
 #include "leveldb/slice.h"
@@ -62,11 +63,11 @@ class BytewiseComparatorImpl : public Comparator {
     // *key is a run of 0xffs.  Leave it alone.
   }
 };
-}
+}  // namespace
 static const BytewiseComparatorImpl bytewise;
 
 const Comparator* BytewiseComparator() {
   return &bytewise;
 }
 
-}
+}  // namespace leveldb

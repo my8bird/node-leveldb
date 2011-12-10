@@ -23,7 +23,7 @@ creating it if necessary:
 <p>
 <pre>
   #include &lt;assert&gt;
-  #include "leveldb/include/db.h"
+  #include "leveldb/db.h"
 
   leveldb::DB* db;
   leveldb::Options options;
@@ -78,7 +78,7 @@ Such problems can be avoided by using the <code>WriteBatch</code> class to
 atomically apply a set of updates:
 <p>
 <pre>
-  #include "leveldb/include/write_batch.h"
+  #include "leveldb/write_batch.h"
   ...
   std::string value;
   leveldb::Status s = db-&gt;Get(leveldb::ReadOptions(), key1, &amp;value);
@@ -193,7 +193,7 @@ that a read should operate on a particular version of the DB state.
 If <code>ReadOptions::snapshot</code> is NULL, the read will operate on an
 implicit snapshot of the current state.
 <p>
-Snapshots typically are created by the DB::GetSnapshot() method:
+Snapshots are created by the DB::GetSnapshot() method:
 <p>
 <pre>
   leveldb::ReadOptions options;
@@ -208,26 +208,6 @@ Note that when a snapshot is no longer needed, it should be released
 using the DB::ReleaseSnapshot interface.  This allows the
 implementation to get rid of state that was being maintained just to
 support reading as of that snapshot.
-<p>
-A Write operation can also return a snapshot that
-represents the state of the database just after applying a particular
-set of updates:
-<p>
-<pre>
-  leveldb::Snapshot* snapshot;
-  leveldb::WriteOptions write_options;
-  write_options.post_write_snapshot = &amp;snapshot;
-  leveldb::Status status = db-&gt;Write(write_options, ...);
-  ... perform other mutations to db ...
-
-  leveldb::ReadOptions read_options;
-  read_options.snapshot = snapshot;
-  leveldb::Iterator* iter = db-&gt;NewIterator(read_options);
-  ... read as of the state just after the Write call returned ...
-  delete iter;
-
-  db-&gt;ReleaseSnapshot(snapshot);
-</pre>
 <h1>Slice</h1>
 <p>
 The return value of the <code>it->key()</code> and <code>it->value()</code> calls above
@@ -296,7 +276,7 @@ subclass of <code>leveldb::Comparator</code> that expresses these rules:
     }
 
     // Ignore the following methods for now:
-    const char* Name() { return "TwoPartComparator"; }
+    const char* Name() const { return "TwoPartComparator"; }
     void FindShortestSeparator(std::string*, const leveldb::Slice&amp;) const { }
     void FindShortSuccessor(std::string*) const { }
   };
@@ -333,7 +313,7 @@ version numbers found in the keys to decide how to interpret them.
 <h1>Performance</h1>
 <p>
 Performance can be tuned by changing the default values of the
-types defined in <code>leveldb/include/options.h</code>.
+types defined in <code>include/leveldb/options.h</code>.
 
 <p>
 <h2>Block size</h2>
@@ -371,7 +351,7 @@ filesystem and each file stores a sequence of compressed blocks.  If
 uncompressed block contents.
 <p>
 <pre>
-  #include "leveldb/include/cache.h"
+  #include "leveldb/cache.h"
 
   leveldb::Options options;
   options.cache = leveldb::NewLRUCache(100 * 1048576);  // 100MB cache

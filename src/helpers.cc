@@ -75,13 +75,20 @@ Handle<Value> processStatus(leveldb::Status status) {
 }
 
 Local<Object> Bufferize(std::string value) {
-    int length = value.length();
-    Buffer *slowBuffer = Buffer::New(length);
-    memcpy(BufferData(slowBuffer), value.c_str(), length);
-    Local<Function> bufferConstructor = Local<Function>::Cast(Context::GetCurrent()->Global()->Get(String::New("Buffer")));
-    Handle<Value> constructorArgs[3] = { slowBuffer->handle_, Integer::New(length), Integer::New(0) };
-    
-    return bufferConstructor->NewInstance(3, constructorArgs);
+  HandleScope scope;
+
+  int length = value.length();
+  Buffer *slowBuffer = Buffer::New(length);
+  memcpy(Buffer::Data(slowBuffer), value.c_str(), length);
+
+  Local<Object> global = v8::Context::GetCurrent()->Global();
+  Local<Value> bv = global->Get(String::NewSymbol("Buffer"));
+  assert(bv->IsFunction());
+  Local<Function> b = Local<Function>::Cast(bv);
+  Handle<Value> argv[3] = { slowBuffer->handle_, Integer::New(length), Integer::New(0) };
+  Local<Object> instance = b->NewInstance(3, argv);
+
+  return scope.Close(instance);
 }
 
 char* BufferData(Buffer *b) {

@@ -72,7 +72,7 @@ class Status {
     kCorruption = 2,
     kNotSupported = 3,
     kInvalidArgument = 4,
-    kIOError = 5,
+    kIOError = 5
   };
 
   Code code() const {
@@ -95,6 +95,6 @@ inline void Status::operator=(const Status& s) {
   }
 }
 
-}
+}  // namespace leveldb
 
 #endif  // STORAGE_LEVELDB_INCLUDE_STATUS_H_

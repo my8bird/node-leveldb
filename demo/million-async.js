@@ -1,4 +1,4 @@
-var leveldb = require('../build/default/leveldb.node'),
+var leveldb = require('../build/leveldb.node'),
     DB = leveldb.DB,
     WriteBatch = leveldb.WriteBatch;
 

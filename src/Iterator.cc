@@ -1,4 +1,5 @@
 #include "Iterator.h"
+#include "DB.h"
 #include "helpers.h"
 #include "iostream"
 
@@ -11,11 +12,13 @@ Iterator::Iterator() {
 }
 
 Iterator::~Iterator() {
-    // cleanup the iterator instance
-    if (this->it) {
-      delete this->it;
-      this->it = NULL;
-    } // if
+  // cleanup the iterator instance
+  if (it) {
+    delete it;
+    it = NULL;
+  } // if
+
+  db.Dispose();
 }
 
 void Iterator::Init(Handle<Object> target) {
@@ -40,13 +43,25 @@ void Iterator::Init(Handle<Object> target) {
   target->Set(String::NewSymbol("Iterator"), persistent_function_template->GetFunction());
 }
 
+void Iterator::Close() {
+  if (it) {
+    delete it;
+    it = NULL;
+  }
+};
+
 Handle<Value> Iterator::New(const Arguments& args) {
   HandleScope scope;
   
   Iterator* iterator = new Iterator();
   
-  if (args.Length() >= 1 && args[0]->IsExternal()) {
-      iterator->it = (leveldb::Iterator*) Local<External>::Cast(args[0])->Value();
+  if (args.Length() >= 2 &&
+      args[0]->IsExternal() &&
+      args[1]->IsObject() && DB::HasInstance(args[1])) {
+    iterator->it = (leveldb::Iterator*) Local<External>::Cast(args[0])->Value();
+    iterator->db = Persistent<Object>::New(args[1]->ToObject());
+  } else {
+    return ThrowException(Exception::TypeError(String::New("Invalid arguments: Please use DB#newIterator.")));
   } // if
   
   iterator->Wrap(args.This());
@@ -58,12 +73,21 @@ Handle<Value> Iterator::Valid(const Arguments& args) {
     HandleScope scope;
 
     Iterator* self = ObjectWrap::Unwrap<Iterator>(args.This());
+
+    if (self->it == NULL) {
+      return ThrowException(Exception::Error(String::New("Iterator or underlying DB has been closed")));
+    }
     
     return self->it->Valid() ? True() : False();
 }
 
 Handle<Value> Iterator::SeekToFirst(const Arguments& args) {
     Iterator* self = ObjectWrap::Unwrap<Iterator>(args.This());
+
+    if (self->it == NULL) {
+      return ThrowException(Exception::Error(String::New("Iterator or underlying DB has been closed")));
+    }
+
     Local<Function> callback;
     callback = Local<Function>::Cast(args[0]);
 
@@ -77,17 +101,22 @@ void Iterator::EIO_BeforeSeekToFirst(SeekParams *params) {
    eio_custom(EIO_SeekToFirst, EIO_PRI_DEFAULT, EIO_AfterSeek, params);
 }
 
-int Iterator::EIO_SeekToFirst(eio_req *req) {
+eio_return_type Iterator::EIO_SeekToFirst(eio_req *req) {
    SeekParams *params = static_cast<SeekParams*>(req->data);
    Iterator *self = params->self;
 
    self->it->SeekToFirst();
 
-   return 0;
+   eio_return_stmt;
 }
 
 Handle<Value> Iterator::SeekToLast(const Arguments& args) {
     Iterator* self = ObjectWrap::Unwrap<Iterator>(args.This());
+
+    if (self->it == NULL) {
+      return ThrowException(Exception::Error(String::New("Iterator or underlying DB has been closed")));
+    }
+
     Local<Function> callback;
     callback = Local<Function>::Cast(args[0]);
 
@@ -101,18 +130,22 @@ void Iterator::EIO_BeforeSeekToLast(SeekParams *params) {
    eio_custom(EIO_SeekToLast, EIO_PRI_DEFAULT, EIO_AfterSeek, params);
 }
 
-int Iterator::EIO_SeekToLast(eio_req *req) {
+eio_return_type Iterator::EIO_SeekToLast(eio_req *req) {
    SeekParams *params = static_cast<SeekParams*>(req->data);
    Iterator *self = params->self;
 
    self->it->SeekToLast();
 
-   return 0;
+   eio_return_stmt;
 }
 
 Handle<Value> Iterator::Seek(const Arguments& args) {
     Iterator* self = ObjectWrap::Unwrap<Iterator>(args.This());
     HandleScope scope;
+
+    if (self->it == NULL) {
+      return ThrowException(Exception::Error(String::New("Iterator or underlying DB has been closed")));
+    }
 
     // XXX: Throw away vector that makes JsToSlice work.
     //      the helper needs to be updated.
@@ -125,20 +158,20 @@ Handle<Value> Iterator::Seek(const Arguments& args) {
     SeekParams *params = new SeekParams(self, key, callback);
     EIO_BeforeSeek(params);
 
-    return Undefined();
+    return scope.Close(Undefined());
 }
 
 void Iterator::EIO_BeforeSeek(SeekParams *params) {
    eio_custom(EIO_Seek, EIO_PRI_DEFAULT, EIO_AfterSeek, params);
 }
 
-int Iterator::EIO_Seek(eio_req *req) {
+eio_return_type Iterator::EIO_Seek(eio_req *req) {
    SeekParams *params = static_cast<SeekParams*>(req->data);
    Iterator *self = params->self;
 
    self->it->Seek(params->key);
 
-   return 0;
+   eio_return_stmt;
 }
 
 int Iterator::EIO_AfterSeek(eio_req *req) {
@@ -149,33 +182,71 @@ int Iterator::EIO_AfterSeek(eio_req *req) {
 }
 
 Handle<Value> Iterator::Next(const Arguments& args) {
-    ObjectWrap::Unwrap<Iterator>(args.This())->it->Next();
-    
+    Iterator *self = ObjectWrap::Unwrap<Iterator>(args.This());
+
+    if (self->it == NULL) {
+      return ThrowException(Exception::Error(String::New("Iterator or underlying DB has been closed")));
+    }
+
+    self->it->Next();
+
     return Undefined();
 }
 
 Handle<Value> Iterator::Prev(const Arguments& args) {
-    ObjectWrap::Unwrap<Iterator>(args.This())->it->Prev();
+    Iterator *self = ObjectWrap::Unwrap<Iterator>(args.This());
+
+    if (self->it == NULL) {
+      return ThrowException(Exception::Error(String::New("Iterator or underlying DB has been closed")));
+    }
+
+    self->it->Prev();
     
     return Undefined();
 }
 
 Handle<Value> Iterator::key(const Arguments& args) {
     HandleScope scope;
-    leveldb::Slice k = ObjectWrap::Unwrap<Iterator>(args.This())->it->key();
+    Iterator *self = ObjectWrap::Unwrap<Iterator>(args.This());
+
+    if (self->it == NULL) {
+      return ThrowException(Exception::Error(String::New("Iterator or underlying DB has been closed")));
+    }
+
+    if (!self->it->Valid()) {
+      return scope.Close(Null());
+    }
+
+    leveldb::Slice k = self->it->key();
     
     return scope.Close(Bufferize(k.ToString()));
 }
 
 Handle<Value> Iterator::value(const Arguments& args) {
     HandleScope scope;
-    leveldb::Slice v = ObjectWrap::Unwrap<Iterator>(args.This())->it->value();
-    
+    Iterator *self = ObjectWrap::Unwrap<Iterator>(args.This());
+
+    if (self->it == NULL) {
+      return ThrowException(Exception::Error(String::New("Iterator or underlying DB has been closed")));
+    }
+
+    if (!self->it->Valid()) {
+      return scope.Close(Null());
+    }
+
+    leveldb::Slice v = self->it->value();
+
     return scope.Close(Bufferize(v.ToString()));
 }
 
 Handle<Value> Iterator::status(const Arguments& args) {
-    leveldb::Status status = ObjectWrap::Unwrap<Iterator>(args.This())->it->status();
+    Iterator *self = ObjectWrap::Unwrap<Iterator>(args.This());
+
+    if (self->it == NULL) {
+      return ThrowException(Exception::Error(String::New("Iterator or underlying DB has been closed")));
+    }
+
+    leveldb::Status status = self->it->status();
     
     return processStatus(status);
 }
