@@ -5,7 +5,7 @@
     "cache"
   ],
   "description": "Bindings for using LevelDB through node.",
-  "homepage": "https: //github.com/my8bird/node-leveldb",
+  "homepage": "https://github.com/my8bird/node-leveldb",
   "version": "0.5.2",
   "main": "lib",
   "scripts": {
@@ -15,14 +15,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "https: //github.com/my8bird/node-leveldb.git"
+    "url": "https://github.com/my8bird/node-leveldb.git"
   },
   "keywords": [
     "database",
     "leveldb"
   ],
   "bugs": {
-    "url": "https: //github.com/my8bird/node-leveldb/issues"
+    "url": "https://github.com/my8bird/node-leveldb/issues"
   },
   "dependencies": {
     "coffee-script": "~1.2.0"
@@ -35,7 +35,7 @@
     "Tim Caswell <tim@creationix.com>",
     "Nathan Landis <my8bird@gmail.com>",
     "Michael Phan-Ba <michael@mikepb.com>",
-    "Randall Leeds <randall.leeds@gmail.com> (http: //claimid.com/randallleeds)",
-    "Damon Oehlman <damon.oehlman@sidelab.com> (http: //www.sidelab.com/)"
+    "Randall Leeds <randall.leeds@gmail.com> (http://claimid.com/randallleeds)",
+    "Damon Oehlman <damon.oehlman@sidelab.com> (http://www.sidelab.com/)"
   ]
 }
