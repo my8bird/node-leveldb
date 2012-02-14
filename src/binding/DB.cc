@@ -25,6 +25,8 @@ Persistent<FunctionTemplate> DB::persistent_function_template;
 DB::DB() : db(NULL) {}
 
 DB::~DB() {
+  CloseIterators();
+  DisposeIterators();
   Close();
 }
 
@@ -137,7 +139,8 @@ EIO_RETURN_TYPE DB::EIO_Open(eio_req *req) {
   OpenParams *params = static_cast<OpenParams*>(req->data);
   DB *self = params->self;
 
-  // Close old DB, if open() is called more than once
+  // If open() is called more than once, we first need to close the old db
+  self->CloseIterators();
   self->Close();
 
   // Do the actual work
@@ -148,6 +151,11 @@ EIO_RETURN_TYPE DB::EIO_Open(eio_req *req) {
 
 int DB::EIO_AfterOpen(eio_req *req) {
   OpenParams *params = static_cast<OpenParams*>(req->data);
+
+  // If we closed any iterators in the asynchronous process, we can dispose of
+  // those handles now.
+  params->self->DisposeIterators();
+
   params->Callback();
   delete params;
 
@@ -161,22 +169,44 @@ int DB::EIO_AfterOpen(eio_req *req) {
 
 void DB::Close() {
   if (db != NULL) {
-    // Close iterators deleting db object
+    delete db;
+    db = NULL;
+  }
+};
+
+//
+// CloseIterators
+//
+
+void DB::CloseIterators() {
+  // Free iterator objects, this function should run asynchronously.
+  if (db != NULL) {
     std::vector< Persistent<Object> >::iterator it;
 
     for (it = iteratorList.begin(); it != iteratorList.end(); it++) {
       Iterator *iterator = ObjectWrap::Unwrap<Iterator>(*it);
       if (iterator) iterator->Close();
+    }
+  }
+}
+
+//
+// Dispose Iterators
+//
+
+void DB::DisposeIterators() {
+  // Dispose iterator handles, this function MUST run in the main thread.
+  if (db != NULL) {
+    std::vector< Persistent<Object> >::iterator it;
+
+    for (it = iteratorList.begin(); it != iteratorList.end(); it++) {
       it->Dispose();
       it->Clear();
     }
 
     iteratorList.clear();
-
-    delete db;
-    db = NULL;
   }
-};
+}
 
 Handle<Value> DB::Close(const Arguments& args) {
   HandleScope scope;
@@ -202,6 +232,8 @@ EIO_RETURN_TYPE DB::EIO_Close(eio_req *req) {
   Params *params = static_cast<Params*>(req->data);
   DB *self = params->self;
 
+  // Disable all iterators before freeing the database object
+  self->CloseIterators();
   self->Close();
 
   EIO_RETURN_STMT;
@@ -209,6 +241,10 @@ EIO_RETURN_TYPE DB::EIO_Close(eio_req *req) {
 
 int DB::EIO_AfterClose(eio_req *req) {
   Params *params = static_cast<Params*>(req->data);
+
+  // We're back in the V8 thread, now dispose of the iterator handles
+  params->self->DisposeIterators();
+
   params->Callback();
   delete params;
 

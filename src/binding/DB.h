@@ -20,6 +20,9 @@ class DB : ObjectWrap {
   ~DB();
 
   void Close();
+  void CloseIterators();
+  void DisposeIterators();
+
   leveldb::DB* operator*();
 
   static void Init(Handle<Object> target);
