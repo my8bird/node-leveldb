@@ -3,6 +3,7 @@
 .git
 *.o
 
+src
 node_modules
 npm-debug.log
 

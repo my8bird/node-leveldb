@@ -1,3 +1,5 @@
+[![Build Status](https://secure.travis-ci.org/my8bird/node-leveldb.png)](http://travis-ci.org/my8bird/node-leveldb)
+
 # Node-LevelDB
 
 The leveldb library provides a persistent key value store. Keys and values are arbitrary byte arrays. The keys are ordered within the key value store according to a user-specified comparator function.
@@ -12,15 +14,17 @@ Since LevelDB provides good primitives like MVCC and binary support (It was desi
 
  * get the build working for 0.7
 
-## Status
+leveldb.open("path/to/my/db", { create_if_missing: true }, onOpen);
 
-This project is still under heavy development in my free-time.  It was started by a long night where I couldn't sleep.  I am not a C++ coder and am learning as I go.
-
-The I/O in this initial version is all blocking and doesn't make use of node's thread pool for disk I/O.  Since my use case is single-user applications, this is a perfectly fine compromise.
-
-Eventually I'll need to make async versions of all the calls so that it can also be used in a highly concurrent server environment.
-
-## API
+function onOpen(err, db) {
+  var key = "mykey";
+  db.put(key, "My Value!", function(err) {
+    db.getSync(key, function(err, value) {
+      console.dir(value); // prints: My Value!
+      db.del(key);
+    });
+  });
+}
 
 The API is meant to be an almost one-to-one mapping to the underlying C++ library.  Essentially it's a key/value store, but has some extra nice things like sorted keys, snapshots and iterators.
 
@@ -39,7 +43,7 @@ This is the main Class and probably the only one that a user needs to create man
     db.close();
 
 I'll document more as this stabilizes.  In the mean-time, check out the demo scripts I use for testing.
-<https://github.com/creationix/node-leveldb/blob/master/demo>
+<https://github.com/my8bird/node-leveldb/blob/master/demo>
 
 ## Compiling
 
@@ -75,3 +79,23 @@ This is the short-term and long roadmap to track progress.
 - ...
 - Hand off project to a loyal maintainer and start my next adventure.
 
+## Contributors
+
+```
+   161  Michael Phan-Ba
+    39  Tim Caswell
+    22  Nathan Landis
+    19  gabor@google.com
+    15  jorlow@chromium.org
+    12  dgrogan@chromium.org
+    12  Stefan Thomas
+     9  Carter Thaxton
+     9  Randall Leeds
+     6  Damon Oehlman
+     5  Hans Wennborg
+     4  shinuza
+     3  hans@chromium.org
+     2  Sanjay Ghemawat
+     1  (no author)
+     1  Gabor Cselle
+```

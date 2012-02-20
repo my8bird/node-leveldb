@@ -10,8 +10,10 @@ describe 'db', ->
   itShouldBehaveLikeAKeyValueStore = (key, val) ->
 
     it 'should open database', (done) ->
-      db = new leveldb.DB
-      db.open filename, create_if_missing: true, paranoid_checks: true, done
+      leveldb.open filename, create_if_missing: true, paranoid_checks: true, (err, handle) ->
+        assert.ifError err
+        db = handle
+        done()
 
     it 'should put key/value pair', (done) ->
       db.put key, val, done
@@ -32,61 +34,116 @@ describe 'db', ->
         done()
 
     it 'should close database', (done) ->
-      db.close done
-
-    it 'should repair database', ->
-      result = leveldb.DB.repairDB filename
-      assert.equal 'OK', result
-      assert path.existsSync filename
-
-    it 'should destroy database', ->
-      result = leveldb.DB.destroyDB filename
-      assert.equal 'OK', result
       db = null
+      process.nextTick done
+
+    it 'should repair database', (done) ->
+      leveldb.repair filename, (err) ->
+        assert.ifError err
+        assert path.existsSync filename
+        done()
+
+    it 'should destroy database', (done) ->
+      leveldb.destroy filename, done
 
   describe 'admin', ->
 
     it 'should open database', (done) ->
-      db = new leveldb.DB
-      db.open filename, create_if_missing: true, done
+      leveldb.open filename, create_if_missing: true, (err, handle) ->
+        assert.ifError err
+        db = handle
+        done()
 
-    it 'should get property', ->
-      assert db.getProperty 'leveldb.stats'
-      assert.equal undefined, db.getProperty ''
+    it 'should get property', (done) ->
+      db.property 'leveldb.stats', (err, value) ->
+        assert.ifError err
+        assert value
+        db.property '', (err, value) ->
+          assert.ifError value
+          done err, value
+
+    it 'should get property (sync)', ->
+      assert db.propertySync 'leveldb.stats'
+      assert.equal undefined, db.propertySync ''
 
     it 'should get no approximate size', ->
-      assert.equal 0, db.getApproximateSizes []
+      assert.equal 0, db.approximateSizesSync []
 
     it 'should get one approximate size', ->
-      db.getApproximateSizes '0', '1'
+      assert.equal 0, db.approximateSizesSync '0', '1'
 
     it 'should put values', (done) ->
-      db.put '' + i, 'Hello World!' for i in [0..999]
-      db.put '100', 'Goodbye World!', done
+      batch = db.batch()
+      batch.put "#{i}", 'Hello World!' for i in [0..10000]
+      batch.put '100', 'Goodbye World!'
+      batch.write sync: true, done
 
     it 'should close database', (done) ->
-      db.close done
       db = null
+      process.nextTick done
 
     it 'should open database', (done) ->
-      db = new leveldb.DB
-      db.open filename, done
+      leveldb.open filename, (err, handle) ->
+        assert.ifError err
+        db = handle
+        done()
 
     it 'should get value', (done) ->
       db.get '100', (err, value) ->
         assert.equal 'Goodbye World!', value
         done()
 
-    it 'should get approximate sizes', ->
-      db.getApproximateSizes '0', '1000'
+    it 'should get approximate sizes (sync)', ->
+      sizes = db.approximateSizesSync '100', '200'
+      assert Array.isArray sizes
+      assert.equal 1, sizes.length
+      assert.equal 'number', typeof sizes[0]
 
-    it 'should get approximate sizes', ->
-      db.getApproximateSizes [[ '0', '50' ], [ '50', '1000' ]]
+    it 'should get approximate sizes (sync)', ->
+      sizes = db.approximateSizesSync [[ '100', '150' ], [ '150', '200' ]]
+      assert Array.isArray sizes
+      assert.equal 2, sizes.length
+      assert.equal 'number', typeof sizes[0]
+      assert.equal 'number', typeof sizes[1]
+
+    it 'should get approximate sizes (sync)', ->
+      sizes = db.approximateSizesSync [ '100', '150' ], [ '150', '200' ], [ '200', '250' ]
+      assert Array.isArray sizes
+      assert.equal 3, sizes.length
+      assert.equal 'number', typeof sizes[0]
+      assert.equal 'number', typeof sizes[1]
+      assert.equal 'number', typeof sizes[2]
+
+    it 'should get approximate sizes (async)', (done) ->
+      db.approximateSizes '100', '200', (err, sizes) ->
+        assert.ifError err
+        assert Array.isArray sizes
+        assert.equal 1, sizes.length
+        assert.equal 'number', typeof sizes[0]
+        done()
+
+    it 'should get approximate sizes (async)', (done) ->
+      db.approximateSizes [[ '100', '150' ], [ '150', '200' ]], (err, sizes) ->
+        assert.ifError err
+        assert Array.isArray sizes
+        assert.equal 2, sizes.length
+        assert.equal 'number', typeof sizes[0]
+        assert.equal 'number', typeof sizes[1]
+        done()
+
+    it 'should get approximate sizes (async)', (done) ->
+      db.approximateSizes [ '100', '150' ], [ '150', '200' ], [ '200', '250' ], (err, sizes) ->
+        assert.ifError err
+        assert Array.isArray sizes
+        assert.equal 3, sizes.length
+        assert.equal 'number', typeof sizes[0]
+        assert.equal 'number', typeof sizes[1]
+        assert.equal 'number', typeof sizes[2]
+        done()
 
     it 'should close database', (done) ->
-      db.close ->
-        db = null
-        done()
+      db = null
+      process.nextTick done
 
   describe 'with ascii values', ->
     itShouldBehaveLikeAKeyValueStore "Hello", "World"

@@ -55,13 +55,11 @@ snappy_src = ["deps/snappy/" + path for path in [
 ]]
 
 node_leveldb_src = ["src/binding/" + path for path in [
-  "leveldb.cc",
-  "options.cc",
-  "snapshot.cc",
-  "DB.cc",
-  "WriteBatch.cc",
-  "Iterator.cc",
-  "helpers.cc"
+  "batch.cc",
+  "binding.cc",
+  "comparator.cc",
+  "handle.cc",
+  "iterator.cc"
 ]]
 
 build_config = join(leveldb_dir, 'build_config.mk')
@@ -88,20 +86,24 @@ def configure(conf):
   conf.check_tool("compiler_cc")
   conf.check_tool("node_addon")
 
-  Utils.exec_command('./configure', cwd = './deps/libsnappy')
+  if not exists('./deps/snappy/Makefile'):
+    Utils.exec_command('./configure', cwd = './deps/snappy')
 
   if not exists(build_config):
-      system('cd %s && sh build_detect_platform' % leveldb_dir)
+    system('cd %s && sh build_detect_platform' % leveldb_dir)
 
   parse_build_config(conf.env)
 
 def clean(ctx):
-  if exists("build"): rmtree("build")
+  if exists('build'): rmtree('build')
   if exists(build_config): remove(build_config)
+  if exists('./deps/snappy/Makefile'):
+    Utils.exec_command('make distclean', cwd = './deps/snappy')
 
 def build_post(bld):
   module_path = bld.path.find_resource('leveldb.node').abspath(bld.env)
-  system('cp %r build/leveldb.node' % module_path)
+  system('mkdir -p lib')
+  system('cp %r lib/leveldb.node' % module_path)
 
 def build(bld):
   node_leveldb = bld.new_task_gen("cxx", "shlib", "node_addon")
@@ -110,5 +112,5 @@ def build(bld):
   node_leveldb.target = "leveldb"
   node_leveldb.uselib = ["pthread"]
   node_leveldb.includes = [snappy_dir, leveldb_dir, leveldb_dir + '/include']
-  node_leveldb.cxxflags = ['-Wall', '-O2', '-DNDEBUG', '-DSNAPPY'] + bld.env.PORT_CFLAGS.split(' ') + bld.env.PLATFORM_CFLAGS.split(' ')
+  node_leveldb.cxxflags = ['-Wall', '-O2', '-DSNAPPY'] + bld.env.PORT_CFLAGS.split(' ') + bld.env.PLATFORM_CFLAGS.split(' ')
   bld.add_post_fun(build_post)

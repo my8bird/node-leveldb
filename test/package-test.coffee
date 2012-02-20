@@ -10,8 +10,5 @@ describe 'package', ->
   it 'should have version', ->
     assert.equal package.version, leveldb.version
 
-  it 'should have read-only binding version', () ->
-    leveldb.bindingVersion = 0
-    assert.equal leveldb.bindingVersion, bindingVersion
-    delete leveldb.bindingVersion
+  it 'should have binding version', () ->
     assert.equal leveldb.bindingVersion, bindingVersion

@@ -1,26 +1,25 @@
 {
   "name": "leveldb",
-  "tags": [
+  "keywords": [
     "database",
-    "cache"
+    "leveldb"
   ],
   "description": "Bindings for using LevelDB through node.",
   "homepage": "https://github.com/my8bird/node-leveldb",
   "version": "0.5.5",
   "main": "lib",
+  "engines": {
+    "node": ">= 0.4.x < 0.7.0"
+  },
   "scripts": {
-    "install":     "node-waf configure build",
-    "postinstall": "./node_modules/coffee-script/bin/coffee -b -c -o lib/ src",
-    "test": "mkdir -p tmp && find tests/ -name '*test.*' -print0 | xargs -0 mocha -R spec ; rm -r tmp"
+    "prepublish": "make coffee",
+    "preinstall": "make package",
+    "test": "make test"
   },
   "repository": {
     "type": "git",
     "url": "https://github.com/my8bird/node-leveldb.git"
   },
-  "keywords": [
-    "database",
-    "leveldb"
-  ],
   "bugs": {
     "url": "https://github.com/my8bird/node-leveldb/issues"
   },
@@ -28,14 +27,22 @@
     "coffee-script": "~1.2.0"
   },
   "devDependencies": {
-    "twisted-deferred": "0.2.x",
-    "mocha": "~0.10.0"
+    "coffee-script": "~1.2.0",
+    "mocha": "~0.11.0"
   },
   "contributors": [
-    "Tim Caswell <tim@creationix.com>",
-    "Nathan Landis <my8bird@gmail.com>",
+    "Carter Thaxton <carter.thaxton@gmail.com>",
+    "Damon Oehlman <damon.oehlman@gmail.com>",
+    "Gabor Cselle <gabor@google.com>",
+    "Hans Wennborg <hans@chromium.org>",
     "Michael Phan-Ba <michael@mikepb.com>",
-    "Randall Leeds <randall.leeds@gmail.com> (http://claimid.com/randallleeds)",
-    "Damon Oehlman <damon.oehlman@sidelab.com> (http://www.sidelab.com/)"
+    "Nathan Landis <my8bird@gmail.com>",
+    "Randall Leeds <randall.leeds@gmail.com>",
+    "Sanjay Ghemawat <sanjay@google.com>",
+    "shinuza <samorigorse@gmail.com>",
+    "Stefan Thomas <justmoon@members.fsf.org>",
+    "Tim Caswell <tim@creationix.com>",
+    "dgrogan@chromium.org",
+    "jorlow@chromium.org"
   ]
 }
