@@ -13,7 +13,8 @@
   },
   "scripts": {
     "prepublish": "make coffee",
-    "preinstall": "make package",
+    "preinstall": "make distclean build clean",
+    "postinstall": "if [ ! -f ./lib/index.js ]; then make coffee; fi",
     "test": "make test"
   },
   "repository": {
@@ -24,7 +25,6 @@
     "url": "https://github.com/my8bird/node-leveldb/issues"
   },
   "dependencies": {
-    "coffee-script": "~1.2.0"
   },
   "devDependencies": {
     "coffee-script": "~1.2.0",
