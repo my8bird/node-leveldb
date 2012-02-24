@@ -17,7 +17,7 @@ clean:
 distclean: clean
 	rm -rf lib node_modules
 
-test: build coffee
+test: coffee
 	rm -rf tmp
 	mkdir -p tmp
 	@mocha --reporter $(REPORTER) test/*-test.coffee

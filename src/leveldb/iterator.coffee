@@ -28,7 +28,7 @@ binding = require '../leveldb.node'
 
 exports.Iterator = class Iterator
 
-  noop = (err) -> throw err if err
+  noop = ->
 
 
   ###

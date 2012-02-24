@@ -1,6 +1,5 @@
 assert  = require 'assert'
 leveldb = require '../lib'
-path    = require 'path'
 
 
 

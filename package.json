@@ -6,14 +6,14 @@
   ],
   "description": "Bindings for using LevelDB through node.",
   "homepage": "https://github.com/my8bird/node-leveldb",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "main": "lib",
   "engines": {
-    "node": ">= 0.6.x < 0.7.0"
+    "node": "~0.6.x"
   },
   "scripts": {
     "prepublish": "make coffee",
-    "preinstall": "make distclean build clean",
+    "preinstall": "make build clean",
     "postinstall": "if [ ! -f ./lib/index.js ]; then make coffee; fi",
     "test": "make test"
   },

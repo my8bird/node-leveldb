@@ -58,7 +58,7 @@ binding = require '../leveldb.node'
 
 exports.Batch = class Batch
 
-  noop = (err) -> throw err if err
+  noop = ->
 
 
   ###

@@ -2,7 +2,7 @@ binding = require '../leveldb.node'
 {Batch} = require './batch'
 {Iterator} = require './iterator'
 
-noop = (err) -> throw err if err
+noop = ->
 
 ###
 
@@ -161,8 +161,6 @@ class Handle
         # to string unless returning as buffer
         value = value.toString 'utf8' if value and not options?.as_buffer
         callback(err, value)
-      else
-        throw err if err
     @
 
 

@@ -4,8 +4,6 @@ leveldb = require '../lib'
 path    = require 'path'
 
 
-
-
 describe 'Handle', ->
   filename = "#{__dirname}/../tmp/handle-test-file"
   db = null

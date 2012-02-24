@@ -107,7 +107,7 @@ template < class T > class Operation {
 
     assert(!op->callback_.IsEmpty());
     Handle<Value> argv[] = { error, result };
-    op->callback_->Call(op->handle_, 2, argv);
+    op->callback_->Call(Context::GetCurrent()->Global(), 2, argv);
 
     if (tryCatch.HasCaught()) FatalException(tryCatch);
 
