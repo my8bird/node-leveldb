@@ -17,6 +17,15 @@ using namespace v8;
 
 namespace node_leveldb {
 
+static inline Handle<Value> AsyncQueue(
+  void* data, const uv_work_cb async, const uv_after_work_cb after)
+{
+  uv_work_t* req = new uv_work_t;
+  req->data = data;
+  uv_queue_work(uv_default_loop(), req, async, after);
+  return Undefined();
+}
+
 static inline Handle<Value> ThrowTypeError(const char* err) {
   return ThrowException(Exception::TypeError(String::New(err)));
 }

@@ -157,10 +157,9 @@ class Handle
     key = new Buffer key unless Buffer.isBuffer key
 
     @self.get key, options, (err, value) ->
-      if callback
-        # to string unless returning as buffer
-        value = value.toString 'utf8' if value and not options?.as_buffer
-        callback(err, value)
+      # to string unless returning as buffer
+      value = value.toString 'utf8' if value and not options?.as_buffer
+      callback err, value
     @
 
 
@@ -235,14 +234,23 @@ class Handle
 
   ###
 
-  write: (batch, options, callback) ->
+  write: (batch, options, callback = noop) ->
 
     # optional options
     if typeof options is 'function'
       callback = options
       options = null
 
-    @self.write batch.self, options, callback or noop
+    # read lock
+    ++batch.readLock_
+
+    @self.write batch.self, options, (err) ->
+
+      # read unlock
+      --batch.readLock_
+
+      callback err
+
     @
 
 

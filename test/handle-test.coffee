@@ -66,7 +66,7 @@ describe 'Handle', ->
   it 'should get approximate size of range', (done) ->
     batch = db.batch()
     batch.put "#{i}", crypto.randomBytes 1024 for i in [10..99]
-    batch.write sync: true, (err) ->
+    batch.write (err) ->
       assert.ifError err
 
       # reopen database for accurate sizes

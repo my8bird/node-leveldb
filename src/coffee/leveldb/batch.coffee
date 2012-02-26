@@ -1,5 +1,7 @@
 binding = require '../leveldb.node'
 
+noop = ->
+
 ###
 
     A batch holds a sequence of put/delete operations to atomically write to
@@ -58,9 +60,6 @@ binding = require '../leveldb.node'
 
 exports.Batch = class Batch
 
-  noop = ->
-
-
   ###
 
       Constructor.
@@ -72,6 +71,7 @@ exports.Batch = class Batch
 
   constructor: (@handle) ->
     @self = new binding.Batch
+    @readLock_ = 0
 
 
   ###
@@ -84,6 +84,7 @@ exports.Batch = class Batch
   ###
 
   put: (key, val) ->
+    throw 'Read locked' if @readLock_ > 0
 
     # to buffer if string
     key = new Buffer key unless Buffer.isBuffer key
@@ -103,6 +104,7 @@ exports.Batch = class Batch
   ###
 
   del: (key) ->
+    throw 'Read locked' if @readLock_ > 0
 
     # to buffer if string
     key = new Buffer key unless Buffer.isBuffer key
@@ -124,6 +126,9 @@ exports.Batch = class Batch
     # require handle
     throw new Error 'No handle' unless @handle
 
+    # read lock
+    ++@readLock_
+
     # optional options
     if typeof options is 'function'
       callback = options
@@ -134,6 +139,9 @@ exports.Batch = class Batch
 
     # call native method
     @handle.write @self, options, (err) =>
+
+      # read unlock
+      --@readLock_
 
       # clear batch
       @self.clear() unless err
@@ -151,5 +159,6 @@ exports.Batch = class Batch
   ###
 
   clear: ->
+    throw 'Read locked' if @readLock_ > 0
     @self.clear()
     @

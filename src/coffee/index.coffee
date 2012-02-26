@@ -1,8 +1,8 @@
 leveldb = exports = module.exports = require './leveldb/handle'
 binding = require './leveldb.node'
 
-leveldb.version = '0.6.1'
-leveldb.bindingVersion = binding.bindingVersion
+leveldb.version = '0.6.2'
+leveldb.bindingVersion = "#{binding.majorVersion}.#{binding.minorVersion}"
 
 leveldb.Batch = require('./leveldb/batch').Batch
 

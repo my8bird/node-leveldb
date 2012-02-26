@@ -28,7 +28,41 @@ binding = require '../leveldb.node'
 
 exports.Iterator = class Iterator
 
-  noop = ->
+  busy = false
+  isValid = false
+  keybuf = null
+  valbuf = null
+
+  lock = ->
+    throw new Error 'Concurrent operations not supported' if busy
+    busy = true
+
+  unlock = ->
+    throw new Error 'Not locked' unless busy
+    busy = false
+
+  afterSeek = (callback) -> (err, valid, key, val) ->
+    unlock()
+    isValid = valid
+    keybuf = key
+    valbuf = val
+    callback err if callback
+
+  getKey = (options = {}) ->
+    unless keybuf
+      return null
+    else unless options.as_buffer
+      keybuf.toString 'utf8'
+    else
+      keybuf
+
+  getValue = (options = {}) ->
+    unless valbuf
+      return null
+    else unless options.as_buffer
+      valbuf.toString 'utf8'
+    else
+      valbuf
 
 
   ###
@@ -40,6 +74,7 @@ exports.Iterator = class Iterator
   ###
 
   constructor: (@self) ->
+
 
   ###
 
@@ -78,23 +113,19 @@ exports.Iterator = class Iterator
     if typeof options is 'object' and not Buffer.isBuffer options
       args.pop()
     else
-      options = null
+      options = {}
 
     # optional keys
-    if args.length is 2
-      [ startKey, limitKey ] = args
-    else
-      startKey = args[0]
+    [ startKey, limitKey ] = args
 
     limit = limitKey.toString 'binary' if limitKey
 
     next = (err) =>
       return callback err if err
-      @current options, (err, key, val) =>
-        return callback err if err
-        if key
-          callback null, key, val
-          @next next if not limit or limit isnt key.toString 'binary'
+      if isValid
+        callback null, getKey(options), getValue(options)
+        if not limit or limit isnt keybuf.toString 'binary'
+          @next next
 
     if startKey
       @seek startKey, next
@@ -108,8 +139,7 @@ exports.Iterator = class Iterator
 
   ###
 
-  valid: ->
-    @self.valid()
+  valid: -> isValid
 
 
   ###
@@ -122,9 +152,10 @@ exports.Iterator = class Iterator
 
   ###
 
-  seek: (key, callback = noop) ->
+  seek: (key, callback) ->
     key = new Buffer key unless Buffer.isBuffer key
-    @self.seek key, callback
+    lock()
+    @self.seek key, afterSeek callback
 
 
   ###
@@ -136,8 +167,9 @@ exports.Iterator = class Iterator
 
   ###
 
-  first: (callback = noop) ->
-    @self.first callback
+  first: (callback) ->
+    lock()
+    @self.first afterSeek callback
 
 
   ###
@@ -149,8 +181,9 @@ exports.Iterator = class Iterator
 
   ###
 
-  last: (callback = noop) ->
-    @self.last callback
+  last: (callback) ->
+    lock()
+    @self.last afterSeek callback
 
 
   ###
@@ -162,8 +195,10 @@ exports.Iterator = class Iterator
 
   ###
 
-  next: (callback = noop) ->
-    @self.next callback
+  next: (callback) ->
+    throw new Error 'Illegal state' unless isValid
+    lock()
+    @self.next afterSeek callback
 
 
   ###
@@ -175,8 +210,10 @@ exports.Iterator = class Iterator
 
   ###
 
-  prev: (callback = noop) ->
-    @self.prev callback
+  prev: (callback) ->
+    throw new Error 'Illegal state' unless isValid
+    lock()
+    @self.prev afterSeek callback
 
 
   ###
@@ -192,19 +229,17 @@ exports.Iterator = class Iterator
 
   ###
 
-  key: (options = {}, callback) ->
+  key: (options, callback) ->
+    throw new Error 'Illegal state' unless isValid
 
     # optional options
     if typeof options is 'function'
       callback = options
-      options = {}
+      options = null
 
     throw new Error 'Missing callback' unless callback
 
-    # async
-    @self.key (err, key) ->
-      key = key.toString 'utf8' unless err or options.as_buffer
-      callback err, key
+    callback null, getKey options
 
 
   ###
@@ -220,19 +255,14 @@ exports.Iterator = class Iterator
 
   ###
 
-  value: (options = {}, callback) ->
+  value: (options, callback) ->
 
     # optional options
     if typeof options is 'function'
       callback = options
-      options = {}
+      options = null
 
-    throw new Error 'Missing callback' unless callback
-
-    # async
-    @self.value (err, val) ->
-      val = val.toString 'utf8' unless err or options.as_buffer
-      callback err, val
+    callback null, getValue options
 
 
   ###
@@ -249,20 +279,13 @@ exports.Iterator = class Iterator
 
   ###
 
-  current: (options = {}, callback) ->
+  current: (options, callback) ->
 
     # optional options
     if typeof options is 'function'
       callback = options
-      options = {}
+      options = null
 
     throw new Error 'Missing callback' unless callback
 
-    # async
-    @self.current (err, kv) ->
-      if kv
-        [ key, val ] = kv
-        unless err or options.as_buffer
-          key = key.toString 'utf8'
-          val = val.toString 'utf8'
-      callback err, key, val
+    callback null, getKey(options), getValue(options)
