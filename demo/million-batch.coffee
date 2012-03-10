@@ -21,7 +21,7 @@ leveldb.open path, create_if_missing: true, (err, db) ->
   bench = ->
     console.log "i = #{i}" if i % 10000 == 0
     batch = new(leveldb.Batch)
-    for j in [0..batchSize]
+    for j in [0...batchSize]
       key = "row#{i}"
       value = JSON.stringify
         index: i
