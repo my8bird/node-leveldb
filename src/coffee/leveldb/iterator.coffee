@@ -28,41 +28,43 @@ binding = require '../leveldb.node'
 
 exports.Iterator = class Iterator
 
-  busy = false
-  isValid = false
-  keybuf = null
-  valbuf = null
+  toBuffer = (val) ->
+    new Buffer val unless Buffer.isBuffer val
 
-  lock = ->
-    throw new Error 'Concurrent operations not supported' if busy
-    busy = true
-
-  unlock = ->
-    throw new Error 'Not locked' unless busy
-    busy = false
-
-  afterSeek = (callback) -> (err, valid, key, val) ->
-    unlock()
-    isValid = valid
-    keybuf = key
-    valbuf = val
-    callback err if callback
-
-  getKey = (options = {}) ->
-    unless keybuf
-      return null
-    else unless options.as_buffer
-      keybuf.toString 'utf8'
+  toValue = (val, options) ->
+    unless val
+      null
+    else unless options?.as_buffer
+      val.toString 'utf8'
     else
-      keybuf
+      val
 
-  getValue = (options = {}) ->
-    unless valbuf
-      return null
-    else unless options.as_buffer
-      valbuf.toString 'utf8'
-    else
-      valbuf
+  _wrapSeek: (callback, validate) =>
+    @_lock()
+
+    throw new Error 'Illegal state' if validate and not @_valid
+    throw new Error 'Missing callback' unless callback
+
+    (err, valid, key, val) =>
+      @_unlock()
+      @_valid = valid
+      @_key = key
+      @_val = val
+      callback err if callback
+
+  _lock: ->
+    throw new Error 'Concurrent operations not supported' if @_busy
+    @_busy = true
+
+  _unlock: ->
+    throw new Error 'Not locked' unless @_busy
+    @_busy = false
+
+  _getKey: (options) ->
+    toValue @_key, options
+
+  _getVal: (options) ->
+    toValue @_val, options
 
 
   ###
@@ -74,6 +76,8 @@ exports.Iterator = class Iterator
   ###
 
   constructor: (@self) ->
+    @_busy = @_valid = false
+    @_key = @_val = null
 
 
   ###
@@ -118,15 +122,18 @@ exports.Iterator = class Iterator
     # optional keys
     [ startKey, limitKey ] = args
 
+    # for comparing end key
     limit = limitKey.toString 'binary' if limitKey
 
+    # loop function
     next = (err) =>
       return callback err if err
-      if isValid
-        callback null, getKey(options), getValue(options)
-        if not limit or limit isnt keybuf.toString 'binary'
+      if @_valid
+        callback null, @_getKey(options), @_getVal(options)
+        if not limit or limit isnt @_key.toString 'binary'
           @next next
 
+    # start loop
     if startKey
       @seek startKey, next
     else
@@ -139,7 +146,7 @@ exports.Iterator = class Iterator
 
   ###
 
-  valid: -> isValid
+  valid: -> @_valid
 
 
   ###
@@ -153,9 +160,7 @@ exports.Iterator = class Iterator
   ###
 
   seek: (key, callback) ->
-    key = new Buffer key unless Buffer.isBuffer key
-    lock()
-    @self.seek key, afterSeek callback
+    @self.seek toBuffer(key), @_wrapSeek callback
 
 
   ###
@@ -168,8 +173,7 @@ exports.Iterator = class Iterator
   ###
 
   first: (callback) ->
-    lock()
-    @self.first afterSeek callback
+    @self.first @_wrapSeek callback
 
 
   ###
@@ -182,8 +186,7 @@ exports.Iterator = class Iterator
   ###
 
   last: (callback) ->
-    lock()
-    @self.last afterSeek callback
+    @self.last @_wrapSeek callback
 
 
   ###
@@ -196,9 +199,7 @@ exports.Iterator = class Iterator
   ###
 
   next: (callback) ->
-    throw new Error 'Illegal state' unless isValid
-    lock()
-    @self.next afterSeek callback
+    @self.next @_wrapSeek callback, true
 
 
   ###
@@ -211,9 +212,7 @@ exports.Iterator = class Iterator
   ###
 
   prev: (callback) ->
-    throw new Error 'Illegal state' unless isValid
-    lock()
-    @self.prev afterSeek callback
+    @self.prev @_wrapSeek callback, true
 
 
   ###
@@ -230,16 +229,15 @@ exports.Iterator = class Iterator
   ###
 
   key: (options, callback) ->
-    throw new Error 'Illegal state' unless isValid
 
     # optional options
     if typeof options is 'function'
       callback = options
       options = null
 
-    throw new Error 'Missing callback' unless callback
-
-    callback null, getKey options
+    key = @_getKey options
+    callback? null, key
+    key
 
 
   ###
@@ -262,7 +260,9 @@ exports.Iterator = class Iterator
       callback = options
       options = null
 
-    callback null, getValue options
+    val = @_getVal options
+    callback? null, val
+    val
 
 
   ###
@@ -286,6 +286,7 @@ exports.Iterator = class Iterator
       callback = options
       options = null
 
-    throw new Error 'Missing callback' unless callback
-
-    callback null, getKey(options), getValue(options)
+    key = @_getKey options
+    val = @_getVal options
+    callback? null, key, val
+    [key, val]
