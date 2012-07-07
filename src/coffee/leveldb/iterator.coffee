@@ -101,7 +101,7 @@ exports.Iterator = class Iterator
         @param {Error} error The error value on error, null otherwise.
         @param {String|Buffer} key The key.
         @param {String|Buffer} value The value.
-      @param {Function} finishedCallback A callback being called when the limit key has been reached
+      @param {Function} finishedCallback An optional callback being called when the limit key has been reached
 
   ###
 
