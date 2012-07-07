@@ -101,12 +101,19 @@ exports.Iterator = class Iterator
         @param {Error} error The error value on error, null otherwise.
         @param {String|Buffer} key The key.
         @param {String|Buffer} value The value.
+      @param {Function} finishedCallback A callback being called when the limit key has been reached
 
   ###
 
   forRange: ->
 
     args = Array.prototype.slice.call arguments
+    
+    #Optional finished callback
+    if typeof(args[args.length - 1]) is 'function' and typeof(args[args.length - 2]) is 'function'
+        finishedCallback = args.pop()
+    else
+        finishedCallback = ->{}
 
     # required callback
     callback = args.pop()
@@ -132,6 +139,8 @@ exports.Iterator = class Iterator
         callback null, @_getKey(options), @_getVal(options)
         if not limit or limit isnt @_key.toString 'binary'
           @next next
+      else
+          finishedCallback()
 
     # start loop
     if startKey
