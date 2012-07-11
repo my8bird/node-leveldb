@@ -23,12 +23,14 @@ base to implement things like CouchDB.
 ## Usage
 
 ```js
+var leveldb = require('leveldb')
+
 leveldb.open("path/to/my/db", { create_if_missing: true }, onOpen);
 
 function onOpen(err, db) {
   var key = "mykey";
   db.put(key, "My Value!", function(err) {
-    db.getSync(key, function(err, value) {
+    db.get(key, function(err, value) {
       console.dir(value); // prints: My Value!
       db.del(key);
     });
@@ -41,6 +43,7 @@ function onOpen(err, db) {
 
 To compile native code and CoffeeScript do:
 
+    sudo npm install -g coffee-script
     npm install
 
 
