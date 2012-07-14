@@ -59,6 +59,40 @@ describe 'Iterator', ->
               iterator.next if ++i <= 200 then next else done
       next()
 
+  it 'should seek to a key', (done) ->
+    i = 100
+    next = (err) ->
+      assert.ifError err
+      expectKey = "#{i}"
+      expectVal = "Hello #{i}"
+      iterator.seek expectKey, (err) ->
+        assert.ifError err
+        iterator.key (err, key) ->
+          assert.ifError err
+          assert.equal expectKey, key
+          iterator.value (err, val) ->
+            assert.ifError err
+            assert.equal expectVal, val
+            if ++i <= 100 then next() else done()
+    next()
+
+  it 'should seek to a key (buffer)', (done) ->
+    i = 100
+    next = (err) ->
+      assert.ifError err
+      expectKey = "#{i}"
+      expectVal = "Hello #{i}"
+      iterator.seek new Buffer(expectKey, 'ascii'), (err) ->
+        assert.ifError err
+        iterator.key (err, key) ->
+          assert.ifError err
+          assert.equal expectKey, key
+          iterator.value (err, val) ->
+            assert.ifError err
+            assert.equal expectVal, val
+            if ++i <= 100 then next() else done()
+    next()
+
   it 'should not get invalid key', (done) ->
     iterator.seek '201', (err) ->
       assert.ifError err

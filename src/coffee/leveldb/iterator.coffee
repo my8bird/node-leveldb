@@ -29,7 +29,7 @@ binding = require '../leveldb.node'
 exports.Iterator = class Iterator
 
   toBuffer = (val) ->
-    new Buffer val unless Buffer.isBuffer val
+    if Buffer.isBuffer val then val else new Buffer val
 
   toValue = (val, options) ->
     unless val
@@ -108,7 +108,7 @@ exports.Iterator = class Iterator
   forRange: ->
 
     args = Array.prototype.slice.call arguments
-    
+
     #Optional finished callback
     if typeof(args[args.length - 1]) is 'function' and typeof(args[args.length - 2]) is 'function'
         finishedCallback = args.pop()
