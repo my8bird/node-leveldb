@@ -93,6 +93,7 @@
         'include/leveldb/comparator.h',
         'include/leveldb/db.h',
         'include/leveldb/env.h',
+        'include/leveldb/filter_policy.h',
         'include/leveldb/iterator.h',
         'include/leveldb/options.h',
         'include/leveldb/slice.h',
@@ -106,6 +107,8 @@
         'port/port_posix.h',
         'table/block.cc',
         'table/block.h',
+        'table/filter_block.cc',
+        'table/filter_block.h',
         'table/block_builder.cc',
         'table/block_builder.h',
         'table/format.cc',
@@ -120,6 +123,7 @@
         'table/two_level_iterator.h',
         'util/arena.cc',
         'util/arena.h',
+        'util/bloom.cc',
         'util/cache.cc',
         'util/coding.cc',
         'util/coding.h',
@@ -128,6 +132,7 @@
         'util/crc32c.h',
         'util/env.cc',
         'util/env_posix.cc',
+        'util/filter_policy.cc',
         'util/hash.cc',
         'util/hash.h',
         'util/logging.cc',
@@ -168,6 +173,16 @@
       ],
       'sources': [
         'util/arena_test.cc',
+      ],
+    },
+    {
+      'target_name': 'leveldb_bloom_test',
+      'type': 'executable',
+      'dependencies': [
+        'leveldb_testutil',
+      ],
+      'sources': [
+        'util/bloom_test.cc',
       ],
     },
     {
@@ -258,6 +273,16 @@
       ],
       'sources': [
         'db/filename_test.cc',
+      ],
+    },
+    {
+      'target_name': 'leveldb_filter_block_test',
+      'type': 'executable',
+      'dependencies': [
+        'leveldb_testutil',
+      ],
+      'sources': [
+        'db/filter_block_test.cc',
       ],
     },
     {

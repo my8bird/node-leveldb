@@ -5,7 +5,7 @@ leveldb = require '../lib'
 
 describe 'package', ->
   pkg = JSON.parse fs.readFileSync __dirname + '/../package.json', 'utf8'
-  bindingVersion = '1.2'
+  bindingVersion = '1.5'
 
   it 'should have version', ->
     assert.equal pkg.version, leveldb.version
