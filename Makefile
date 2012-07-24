@@ -5,25 +5,25 @@ BINARY=./lib/leveldb.node
 PATH:=./node_modules/.bin:${PATH}
 
 build:
-	if [ ! -d ./build ]; then node-waf configure; fi
-	node-waf build
+	if [ ! -d ./build ]; then node-gyp configure; fi
+	node-gyp build
 
 coffee:
 	coffee --bare --compile --output lib src/coffee
 
 clean:
-	node-waf clean
+	node-gyp clean
 	rm -rf tmp
 
 distclean: clean
 	rm -rf lib node_modules
 
 pkgclean:
-	if [ ! -d .git ]; then rm -r build deps src; fi
+	if [ ! -d .git ]; then rm -r deps src; fi
 
 test: build coffee
 	rm -rf tmp
 	mkdir -p tmp
-	@mocha --reporter $(REPORTER) test/*-test.coffee
+	@mocha --compilers coffee:coffee-script --reporter $(REPORTER) test/*-test.coffee
 
 .PHONY: build coffee clean distclean pkgclean test

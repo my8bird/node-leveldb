@@ -132,7 +132,7 @@ bool SomeFileOverlapsRange(
   const Comparator* ucmp = icmp.user_comparator();
   if (!disjoint_sorted_files) {
     // Need to check against all files
-    for (int i = 0; i < files.size(); i++) {
+    for (size_t i = 0; i < files.size(); i++) {
       const FileMetaData* f = files[i];
       if (AfterFile(ucmp, smallest_user_key, f) ||
           BeforeFile(ucmp, largest_user_key, f)) {
@@ -255,35 +255,34 @@ void Version::AddIterators(const ReadOptions& options,
   }
 }
 
-// If "*iter" points at a value or deletion for user_key, store
-// either the value, or a NotFound error and return true.
-// Else return false.
-static bool GetValue(const Comparator* cmp,
-                     Iterator* iter, const Slice& user_key,
-                     std::string* value,
-                     Status* s) {
-  if (!iter->Valid()) {
-    return false;
-  }
+// Callback from TableCache::Get()
+namespace {
+enum SaverState {
+  kNotFound,
+  kFound,
+  kDeleted,
+  kCorrupt,
+};
+struct Saver {
+  SaverState state;
+  const Comparator* ucmp;
+  Slice user_key;
+  std::string* value;
+};
+}
+static void SaveValue(void* arg, const Slice& ikey, const Slice& v) {
+  Saver* s = reinterpret_cast<Saver*>(arg);
   ParsedInternalKey parsed_key;
-  if (!ParseInternalKey(iter->key(), &parsed_key)) {
-    *s = Status::Corruption("corrupted key for ", user_key);
-    return true;
-  }
-  if (cmp->Compare(parsed_key.user_key, user_key) != 0) {
-    return false;
-  }
-  switch (parsed_key.type) {
-    case kTypeDeletion:
-      *s = Status::NotFound(Slice());  // Use an empty error message for speed
-      break;
-    case kTypeValue: {
-      Slice v = iter->value();
-      value->assign(v.data(), v.size());
-      break;
+  if (!ParseInternalKey(ikey, &parsed_key)) {
+    s->state = kCorrupt;
+  } else {
+    if (s->ucmp->Compare(parsed_key.user_key, s->user_key) == 0) {
+      s->state = (parsed_key.type == kTypeValue) ? kFound : kDeleted;
+      if (s->state == kFound) {
+        s->value->assign(v.data(), v.size());
+      }
     }
   }
-  return true;
 }
 
 static bool NewestFirst(FileMetaData* a, FileMetaData* b) {
@@ -361,21 +360,27 @@ Status Version::Get(const ReadOptions& options,
       last_file_read = f;
       last_file_read_level = level;
 
-      Iterator* iter = vset_->table_cache_->NewIterator(
-          options,
-          f->number,
-          f->file_size);
-      iter->Seek(ikey);
-      const bool done = GetValue(ucmp, iter, user_key, value, &s);
-      if (!iter->status().ok()) {
-        s = iter->status();
-        delete iter;
+      Saver saver;
+      saver.state = kNotFound;
+      saver.ucmp = ucmp;
+      saver.user_key = user_key;
+      saver.value = value;
+      s = vset_->table_cache_->Get(options, f->number, f->file_size,
+                                   ikey, &saver, SaveValue);
+      if (!s.ok()) {
         return s;
-      } else {
-        delete iter;
-        if (done) {
+      }
+      switch (saver.state) {
+        case kNotFound:
+          break;      // Keep searching in other files
+        case kFound:
           return s;
-        }
+        case kDeleted:
+          s = Status::NotFound(Slice());  // Use empty error message for speed
+          return s;
+        case kCorrupt:
+          s = Status::Corruption("corrupted key for ", user_key);
+          return s;
       }
     }
   }
@@ -1292,7 +1297,7 @@ Compaction* VersionSet::CompactRange(
   // Avoid compacting too much in one shot in case the range is large.
   const uint64_t limit = MaxFileSizeForLevel(level);
   uint64_t total = 0;
-  for (int i = 0; i < inputs.size(); i++) {
+  for (size_t i = 0; i < inputs.size(); i++) {
     uint64_t s = inputs[i]->file_size;
     total += s;
     if (total >= limit) {

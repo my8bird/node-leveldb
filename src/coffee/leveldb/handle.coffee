@@ -1,4 +1,4 @@
-binding = require '../leveldb.node'
+binding = require '../../build/Release/leveldb.node'
 {Batch} = require './batch'
 {Iterator} = require './iterator'
 
