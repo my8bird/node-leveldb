@@ -2,6 +2,8 @@ assert  = require 'assert'
 crypto  = require 'crypto'
 leveldb = require '../lib'
 path    = require 'path'
+fs      = require 'fs'
+exists  = fs.existsSync || path.existsSync
 
 
 describe 'Handle', ->
@@ -37,7 +39,7 @@ describe 'Handle', ->
   it 'should repair database', (done) ->
     leveldb.repair filename, (err) ->
       assert.ifError err
-      assert path.existsSync filename
+      assert exists filename
       done()
 
   it 'should get property', (done) ->
