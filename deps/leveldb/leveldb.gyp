@@ -26,6 +26,13 @@
           'PLATFORM=OS_MACOSX'
         ]
       }],
+      ['OS == "solaris"', {
+        'defines': [
+          'OS_SOLARIS',
+          '_REENTRANT',
+          'PLATFORM=OS_SOLARIS',
+        ]
+      }],
       ['use_snappy', {
         'defines': [
           'USE_SNAPPY=1',
