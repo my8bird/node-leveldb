@@ -23,6 +23,7 @@ class JBatch : ObjectWrap {
 
   static Persistent<FunctionTemplate> constructor;
   static void Initialize(Handle<Object> target);
+  leveldb::WriteBatch* GetBatch() { return &wb_; }
 
  private:
   friend class JHandle;
