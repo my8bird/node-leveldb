@@ -16,6 +16,7 @@ class JIterator : ObjectWrap {
  public:
   static Persistent<FunctionTemplate> constructor;
   static void Initialize(Handle<Object> target);
+  leveldb::Iterator* GetIterator() { return it_; }
 
  private:
   friend class JHandle;
