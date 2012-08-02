@@ -26,6 +26,7 @@ class JHandle : public ObjectWrap {
   static inline bool HasInstance(Handle<Value> value) {
     return value->IsObject() && constructor->HasInstance(value->ToObject());
   }
+  leveldb::DB* GetDB() { return db_; }
 
  private:
   // No instance creation outside of Handle
