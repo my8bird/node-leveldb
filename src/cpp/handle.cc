@@ -94,7 +94,8 @@ class JHandle::OpAsync {
 
     if ((error.IsEmpty()  || error->IsNull())  &&
         (result.IsEmpty() || result->IsNull()) &&
-        !op->status_.ok()) {
+        !op->status_.ok() &&
+        !op->status_.IsNotFound()) {
       error = Exception::Error(String::New(op->status_.ToString().c_str()));
     }
 
