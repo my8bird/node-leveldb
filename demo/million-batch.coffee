@@ -33,5 +33,7 @@ leveldb.open path, create_if_missing: true, (err, db) ->
     db.write batch, (err) ->
       throw err if err
       if i < totalSize then bench() else callback()
+      db = null
+      gc?() # explicit gc if enabled - useful for debugging memleaks
 
   bench()
