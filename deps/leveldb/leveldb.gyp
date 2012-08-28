@@ -13,6 +13,7 @@
     'include_dirs': [
       '.',
       'include/',
+      '../snappy',
     ],
     'conditions': [
       ['OS == "win"', {
