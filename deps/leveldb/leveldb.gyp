@@ -35,7 +35,7 @@
       }],
       ['use_snappy', {
         'defines': [
-          'USE_SNAPPY=1',
+          'SNAPPY=1',
         ],
       }],
     ],
