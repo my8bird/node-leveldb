@@ -65,6 +65,25 @@ static inline leveldb::Slice ToSlice(const Handle<Value>& value,
   }
 }
 
+static Persistent<Function> FastBufferConstructor;
+
+static inline Handle<Value> MakeFastBuffer(Buffer *slowBuffer, size_t len)
+{
+  if (FastBufferConstructor.IsEmpty()) {
+    Local<Object> global = Context::GetCurrent()->Global();
+    Local<Value> bv = global->Get(String::NewSymbol("Buffer"));
+    FastBufferConstructor = Persistent<Function>::New(Local<Function>::Cast(bv));
+  }
+
+  Handle<Value> argv[3] = { slowBuffer->handle_,
+                            Integer::New(len),
+                            Integer::New(0) };
+
+  Local<Object> fastBuffer = FastBufferConstructor->NewInstance(3, argv);
+
+  return fastBuffer;
+}
+
 static void FreeString(char* data, void* hint) {
   std::string* str = static_cast<std::string*>(hint);
   delete str;
@@ -75,13 +94,13 @@ static void FreeNoop(char* data, void* hint) {}
 static inline Handle<Value> ToBuffer(std::string* val) {
   Buffer* buf = Buffer::New(const_cast<char*>(val->data()),
                             val->size(), FreeString, val);
-  return buf->handle_;
+  return MakeFastBuffer(buf, val->size());
 }
 
 static inline Handle<Value> ToBuffer(const leveldb::Slice& val) {
   Buffer* buf = Buffer::New(const_cast<char*>(val.data()), val.size(),
                             FreeNoop, NULL);
-  return buf->handle_;
+  return MakeFastBuffer(buf, val.size());
 }
 
 static inline Local<Function> GetCallback(const Arguments& args) {
