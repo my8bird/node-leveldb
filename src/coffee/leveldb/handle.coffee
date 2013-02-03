@@ -46,6 +46,7 @@ noop = ->
 
 ###
 
+
 exports.open = (path, options, callback) ->
 
   # optional options
@@ -59,7 +60,25 @@ exports.open = (path, options, callback) ->
     handle = self and new Handle self
     callback err, handle
 
+###
 
+    Synchronous version of open
+
+###
+
+exports.openSync = (path, options) ->
+
+  # optional options
+  if typeof options is 'function'
+    callback = options
+    options = null
+
+  #openSync throws an exception on error
+  self = binding.openSync path, options
+  handle = self and new Handle self
+  return handle
+  
+  
 ###
 
     Destroy a leveldb database.
@@ -107,7 +126,7 @@ exports.repair = (path, options, callback) ->
 ###
 
     A handle represents an open leveldb database.
-
+hand
 ###
 
 class Handle
