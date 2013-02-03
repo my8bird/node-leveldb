@@ -1,9 +1,44 @@
-assert  = require 'assert'
+assert  = require 'assert' 
 crypto  = require 'crypto'
 leveldb = require '../lib'
 path    = require 'path'
 fs      = require 'fs'
 exists  = fs.existsSync || path.existsSync
+
+#Test sync open -- Jus t test a single get/put cycle to verify it's a valid handle
+#As the code is basically the same as the async version's code, all subsequ
+describe 'syncOpen', ->
+  filename = "#{__dirname}/../tmp/open-sync-test-file"
+  db = null
+  
+  beforeEach (done) ->
+    db = leveldb.openSync filename, {create_if_missing: true, error_if_exists: true}
+    done()
+  afterEach (done) ->
+    db = null
+    iterator = null
+    leveldb.destroy filename, done
+  
+  itShouldBehave = (test) ->
+    describe 'with ascii values', ->
+      key = "Hello"
+      val = "World"
+      test key, val
+      describe 'as_buffer', -> test key, val, true
+    describe 'with buffer values', ->
+      key = new Buffer [1,9,9,9]
+      val = new Buffer [1,2,3,4]
+      test key, val
+      describe 'as_buffer', -> test key, val, true
+  itShouldBehave (key, val, asBuffer) ->
+    it 'should put key/value pair', (done) ->
+      db.put key, val, (err) ->
+        assert.ifError err
+        db.get key, as_buffer: asBuffer, (err, value) ->
+          assert.ifError err
+          assert Buffer.isBuffer value if asBuffer
+          assert.equal val.toString(), value.toString()
+          done()
 
 
 describe 'Handle', ->
