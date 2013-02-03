@@ -67,7 +67,6 @@ exports.open = (path, options, callback) ->
 ###
 
 exports.openSync = (path, options) ->
-
   # optional options
   if typeof options is 'function'
     callback = options

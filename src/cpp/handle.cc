@@ -164,7 +164,6 @@ class JHandle::OpenAsync : public OpAsync {
   Persistent<Value> comparator_;
 };
 
-
 static Handle<Value> openSync(const Arguments& args) {
     if (args.Length() != 2 || !args[0]->IsString()) {
         return ThrowTypeError("Invalid arguments");
@@ -611,9 +610,11 @@ void JHandle::Initialize(Handle<Object> target) {
 
   // Static methods
   NODE_SET_METHOD(target, "open", OpenAsync::Hook<OpenAsync>);
-  NODE_SET_METHOD(target, "openSync", openSync);
   NODE_SET_METHOD(target, "destroy", OpenAsync::Hook<DestroyAsync>);
   NODE_SET_METHOD(target, "repair", OpenAsync::Hook<RepairAsync>);
+  
+  //Synchronous methods
+  NODE_SET_METHOD(target, "openSync", openSync);
 
   // Set version
   target->Set(String::New("majorVersion"),
