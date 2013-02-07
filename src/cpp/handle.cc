@@ -164,9 +164,30 @@ class JHandle::OpenAsync : public OpAsync {
   Persistent<Value> comparator_;
 };
 
-
-
-
+static Handle<Value> openSync(const Arguments& args) {
+    if (args.Length() != 2 || !args[0]->IsString()) {
+        return ThrowTypeError("Invalid arguments");
+    }
+    //Process the arguments
+    std::string name_ = *String::Utf8Value(args[0]);
+    leveldb::Options options_;
+    Persistent<Value> comparator_;
+    UnpackOptions(args[1], options_, &comparator_);
+    //Open the database
+    leveldb::DB* db_;
+    leveldb::Status status_ = leveldb::DB::Open(options_, name_, &db_);
+    //Check if the database has been opened successfully
+    if (!status_.ok()) {
+        Handle<String> errMsg = String::New(status_.ToString().c_str());
+        return ThrowException(errMsg);
+    }
+    //Create and return the handle object
+    Handle<Value> handleArgs[] = { External::New(db_), Undefined() };
+    if (!comparator_.IsEmpty()) {
+        handleArgs[1] = comparator_;
+    }
+    return JHandle::constructor->GetFunction()->NewInstance(2, handleArgs);
+}
 
 /**
 
@@ -591,6 +612,9 @@ void JHandle::Initialize(Handle<Object> target) {
   NODE_SET_METHOD(target, "open", OpenAsync::Hook<OpenAsync>);
   NODE_SET_METHOD(target, "destroy", OpenAsync::Hook<DestroyAsync>);
   NODE_SET_METHOD(target, "repair", OpenAsync::Hook<RepairAsync>);
+  
+  //Synchronous methods
+  NODE_SET_METHOD(target, "openSync", openSync);
 
   // Set version
   target->Set(String::New("majorVersion"),
