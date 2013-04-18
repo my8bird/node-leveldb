@@ -74,7 +74,7 @@ class JHandle::OpAsync {
   }
 
   template <class T> static Handle<Value> AsyncEnqueue(T* op) {
-    return AsyncQueue(op, AsyncWorker<T>, AsyncCallback<T>);
+    return AsyncQueue(op, AsyncWorker<T>, (uv_after_work_cb)AsyncCallback<T>);
   }
 
   template <class T> static void AsyncWorker(uv_work_t* req) {
@@ -82,7 +82,7 @@ class JHandle::OpAsync {
     op->Run();
   }
 
-  template <class T> static void AsyncCallback(uv_work_t* req) {
+  template <class T> static void AsyncCallback(uv_work_t* req, int status = 0) {
     HandleScope scope;
     T* op = static_cast<T*>(req->data);
     assert(!op->callback_.IsEmpty());
