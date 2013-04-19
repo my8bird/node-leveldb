@@ -25,6 +25,7 @@
     "url": "https://github.com/my8bird/node-leveldb/issues"
   },
   "dependencies": {
+     "node-gyp": "~0.9.5"
   },
   "devDependencies": {
     "coffee-script": "~1.3.0",

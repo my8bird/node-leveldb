@@ -38,7 +38,7 @@ class JIterator : ObjectWrap {
   static Handle<Value> Seek(const uv_work_cb fn, const Arguments& args);
 
   Handle<Value> Async(const uv_work_cb fn, const Local<Value>& callback);
-  static void AfterAsync(uv_work_t* req);
+  static void AfterAsync(uv_work_t* req, int status);
 
   void BeforeSeek();
   void AfterSeek();

@@ -88,10 +88,10 @@ Handle<Value> JIterator::Async(const uv_work_cb fn, const Local<Value>& callback
   busy_ = true;
   Ref();
 
-  return AsyncQueue(this, fn, AfterAsync);
+  return AsyncQueue(this, fn, (uv_after_work_cb)AfterAsync);
 }
 
-void JIterator::AfterAsync(uv_work_t* req) {
+void JIterator::AfterAsync(uv_work_t* req, int status = 0) {
   HandleScope scope;
   JIterator* self = static_cast<JIterator*>(req->data);
 
