@@ -1,3 +1,6 @@
+This repository is no longer maintained.  [node-levelup](https://github.com/rvagg/node-levelup) may provide what you need.
+
+
 [![Build Status](https://secure.travis-ci.org/my8bird/node-leveldb.png)](http://travis-ci.org/my8bird/node-leveldb)
 
 
